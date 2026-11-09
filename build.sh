@@ -121,7 +121,8 @@ is_running() {
 grant_share_access() {
     # Grant the package user RW access to all configured target shares.
     # Extracts the top-level share name from each account's target_dir
-    # and calls synoshare via sudo (sudoers entry created by postinst).
+    # and calls synoshare via sudo. No sudoers entry is installed any more,
+    # so this is best-effort: grant access manually in Control Panel.
     PKG_USER="iCloudPhotoSync"
     SYNOSHARE="/usr/syno/sbin/synoshare"
     [ -x "$SYNOSHARE" ] || return 0
@@ -234,13 +235,8 @@ mkdir -p "$PKG_VAR/accounts" "$PKG_VAR/logs"
 [ -f "$PKG_VAR/config.json" ] || \
     echo '{"accounts": [], "default_target_dir": "/volume1/iCloudPhotos"}' > "$PKG_VAR/config.json"
 chown -R iCloudPhotoSync:iCloudPhotoSync "$PKG_VAR" 2>/dev/null || true
-# Allow CGI to grant share access and self-update without package restart
-cat > /etc/sudoers.d/iCloudPhotoSync <<'SUDOEOF'
-iCloudPhotoSync ALL=(root) NOPASSWD: /usr/syno/sbin/synoshare
-iCloudPhotoSync ALL=(root) NOPASSWD: /usr/syno/bin/synopkg install /tmp/ics_update_*
-SUDOEOF
-chmod 440 /etc/sudoers.d/iCloudPhotoSync
-# Clean legacy artifacts
+# Clean legacy artifacts (incl. the sudoers file older builds installed)
+rm -f /etc/sudoers.d/iCloudPhotoSync 2>/dev/null || true
 rm -f /etc/cron.d/iCloudPhotoSync 2>/dev/null || true
 exit 0
 EOF
@@ -277,12 +273,8 @@ cat > "$BUILD_DIR/scripts/postupgrade" <<'EOF'
 #!/bin/sh
 PKG_VAR="${SYNOPKG_PKGVAR:-/var/packages/iCloudPhotoSync/var}"
 chown -R iCloudPhotoSync:iCloudPhotoSync "$PKG_VAR" 2>/dev/null || true
-# Ensure sudoers entry exists (may be missing from older versions)
-cat > /etc/sudoers.d/iCloudPhotoSync <<'SUDOEOF'
-iCloudPhotoSync ALL=(root) NOPASSWD: /usr/syno/sbin/synoshare
-iCloudPhotoSync ALL=(root) NOPASSWD: /usr/syno/bin/synopkg install /tmp/ics_update_*
-SUDOEOF
-chmod 440 /etc/sudoers.d/iCloudPhotoSync
+# Remove the sudoers file older builds installed
+rm -f /etc/sudoers.d/iCloudPhotoSync 2>/dev/null || true
 rm -f /etc/cron.d/iCloudPhotoSync 2>/dev/null || true
 exit 0
 EOF
